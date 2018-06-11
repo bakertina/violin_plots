@@ -170,7 +170,7 @@ split_violin <- function(df, split_col, group_col, labels=NULL, xlab = "X_",
           label = paste0(nums[1, (i + 1)], " : ", nums[2, (i + 1)]),
           size = geom.text.size,
           color = "black",
-          family = "ArialMT"
+          family = base_family
         )
     }
   }
