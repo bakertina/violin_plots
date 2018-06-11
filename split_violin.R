@@ -1,4 +1,4 @@
-split_violin <- function(data_new_cleaned, split_col, group_col, labels=NULL, xlab = "X_",
+split_violin <- function(df, split_col, group_col, labels=NULL, xlab = "X_",
                           ylab = "Y_", nums_y =NULL, levels =NULL, levels_split=NULL,
                           theme=FALSE, colours , position = "bottom", 
                           include_counts = TRUE, main = "", base_size = 12, base_family =NULL, 
@@ -7,37 +7,39 @@ split_violin <- function(data_new_cleaned, split_col, group_col, labels=NULL, xl
   require(dplyr)
   require(broom)
   
-  colnames(data_new_cleaned) <- gsub(xvalue, "x_value", x = colnames(data_new_cleaned))
+  colnames(df) <- gsub(xvalue, "x_value", x = colnames(df))
   theme.size = base_size
   geom.text.size = theme.size / 14 * 5
   # geom txt size comes up bigger so use this conversion to keep ratio which is useful in some plots
-  colnames(data_new_cleaned)[colnames(data_new_cleaned) == split_col] <-
+  colnames(df)[colnames(df) == split_col] <-
     "split_col_"
-  colnames(data_new_cleaned)[colnames(data_new_cleaned) == group_col] <-
+  colnames(df)[colnames(df) == group_col] <-
     "inter_"
-  if (is.null(levels)) {colours =c("#0057e7", "#d62d20")}
-  if (is.null(nums_y)) {nums_y =max(data_new_cleaned$x_value)*1.2}
+  if (is.null(levels)) {colours =c("#0057e7", "#d62d20")} # colours if null
+  if (is.null(nums_y)) {nums_y =max(df$x_value)*1.2}
   if (!is.null(levels)) {
-    data_new_cleaned$inter_ <-
-      factor(data_new_cleaned$inter_, levels = levels)
+    df$inter_ <-
+      factor(df$inter_, levels = levels) # levels if null
   }
   if (!is.null(levels_split)) {
-    data_new_cleaned$split_col_ <-
-      factor(data_new_cleaned$split_col_, levels = levels_split)
+    df$split_col_ <-
+      factor(df$split_col_, levels = levels_split) # split levels if null
   }
   ##############################################################################
-  #http://stackoverflow.com/questions/35732845/split-violin-plot-with-quartiles
-  # The split plots are done by calculating the densities yourself beforehand, and then plotting polygons. 
-
-  pdat = data_new_cleaned %>%
+  # Code for splits was adapted from
+  # http://stackoverflow.com/questions/35732845/split-violin-plot-with-quartiles
+  # link now dead; as of 10/06/18; can not credit contribution.
+  # Here the split is made by calculating the densities first and then then plotting polygons. 
+  # ### Format main data
+  pdat = df %>%
     group_by(inter_, split_col_) %>%
     do(tidy(density(.[['x_value']]))) %>%
     rename(loc = x, dens = y) %>%
     mutate(dens = 0.5 * dens / max(dens)) %>%
     ungroup()
-  #     Calculate summary statistics in a separate dataframe;
-  # sums -  quants and mean
-  sums = data_new_cleaned %>%
+  # ### Summary Stats 
+  # sums =  quants and mean
+  sums = df %>%
     group_by(inter_, split_col_) %>%
     summarise(
       lquart_loc = quantile(x_value)[[2]],
@@ -46,11 +48,11 @@ split_violin <- function(data_new_cleaned, split_col, group_col, labels=NULL, xl
     ) %>%
     ungroup() %>%
     gather(segment, loc_sum, lquart_loc, uquart_loc, med)
-  # sums2 -  indervidual lines
-  data_new_cleaned %>%
+  # sums2 =   indervidual lines
+  df %>%
     select(inter_, split_col_, x_value) -> sums2
-  #     Calculate the corresponding points on each group's density curve
-  # left join sums
+  # ### Calculate the corresponding points on each density curve
+  # sums
   sums = left_join(pdat, sums, by = c('inter_', 'split_col_')) %>%
     group_by(inter_, split_col_) %>%
     do(data.frame(
@@ -58,7 +60,7 @@ split_violin <- function(data_new_cleaned, split_col, group_col, labels=NULL, xl
       dens = approx(.$loc, .$dens, unique(.$loc_sum))[['y']]
     )) %>%
     ungroup()
-  # Left join suns2
+  # sums2
   sums2 = left_join(pdat, sums2, by = c('inter_', 'split_col_')) %>%
     group_by(inter_, split_col_) %>%
     do(data.frame(
@@ -66,13 +68,13 @@ split_violin <- function(data_new_cleaned, split_col, group_col, labels=NULL, xl
       dens = approx(.$loc, .$dens, unique(.$x_value))[['y']]
     )) %>%
     ungroup()
-  #     Change the number of offsest for the data
-  offsets = unique(data_new_cleaned[['inter_']]) %>% {
+  # ### Change the number of offsest for the data
+  offsets = unique(df[['inter_']]) %>% {
     setNames(0:(length(.) - 1), .)
-  } #number of groups
-  splits = unique(data_new_cleaned[['split_col_']]) # what value to split on
+  } # number of groups
+  splits = unique(df[['split_col_']]) # what value to split on
   
-  #     Offset the densities and summary statistics
+  # ### Offset the densities and summary statistics
   # mutate pdat with dens
   pdat = pdat %>%
     mutate(offset_dens = offsets[.[['inter_']]] + ifelse(.[['split_col_']] == splits[1], -dens, dens))
@@ -80,15 +82,16 @@ split_violin <- function(data_new_cleaned, split_col, group_col, labels=NULL, xl
   sums = sums %>%
     mutate(offset = offsets[.[['inter_']]],
            offset_dens = offset + ifelse(.[['split_col_']] == splits[1], -dens, dens)) ## Q1,Q3 MEAN
-  # ### SUMS MEAN
+  # sums mean 
   a <- 1:nrow(sums); b <- a[seq(3, length(a), 3)] # multiples of 3
   droplevels(sums) -> sums
   sums[b,] %>% droplevels() -> sums_mean # select the means
-  
-  # mutate summs2 with dens
+  # mutate sums2 with dens
   sums2 = sums2 %>%
     mutate(offset = offsets[.[['inter_']]],
-           offset_dens = offset + ifelse(.[['split_col_']] == splits[1], -0.1, +0.1)) # change the +/- 0.01 for making lines wider
+           offset_dens = offset + ifelse(.[['split_col_']] == splits[1], -0.1, +0.1)) 
+  # change the +/- 0.01 for making lines wider
+  #############################################################################
   # ### START THE PLOT
   if (!is.null(labels)) {
     labels_ <- labels
@@ -96,11 +99,11 @@ split_violin <- function(data_new_cleaned, split_col, group_col, labels=NULL, xl
   else{
     labels_ <- names(offsets)
   }
-  print(table(data_new_cleaned$split_col_, data_new_cleaned$inter_))
-  nums <- table(data_new_cleaned$split_col_, data_new_cleaned$inter_)
+  print(table(df$split_col_, df$inter_))
+  nums <- table(df$split_col_, df$inter_)
   
   q <- ggplot(pdat,
-              aes(
+              aes(# density
                 offset_dens,
                 loc,
                 color = split_col_,
@@ -136,7 +139,7 @@ split_violin <- function(data_new_cleaned, split_col, group_col, labels=NULL, xl
       linetype =1, # solid line
       inherit.aes = FALSE
     ) +
-    geom_segment(
+    geom_segment( # indervidual lines
       data = sums2,
       aes(
         x = offset,
@@ -154,9 +157,8 @@ split_violin <- function(data_new_cleaned, split_col, group_col, labels=NULL, xl
     ggtitle(label = main) +
     coord_cartesian(xlim = NULL, ylim = ylim) +
     scale_color_manual(values = colours) +
-    scale_fill_manual(values = colours);q
-  #xlab(xlab) +
-  
+    scale_fill_manual(values = colours)
+  # ### Add the text for the counts
   guides(colour = guide_legend(override.aes = list(alpha = 0.1)))
   if (include_counts == TRUE) {
     for (i in  unname(offsets)) {
@@ -172,7 +174,7 @@ split_violin <- function(data_new_cleaned, split_col, group_col, labels=NULL, xl
         )
     }
   }
-  ## adds some final touches
+  # ### Add custom prism style theme
   if (theme == "prism_style") {
     q <- q + theme_bw() +
       theme(
@@ -193,6 +195,7 @@ split_violin <- function(data_new_cleaned, split_col, group_col, labels=NULL, xl
         legend.title = element_blank()
       )
   }
+  # ### Set ggplot themes
   else if (theme == "minimal") {
     q <- q + theme_minimal(base_size = base_size) +
       theme(legend.title = element_blank(),

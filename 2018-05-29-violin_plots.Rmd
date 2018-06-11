@@ -1,0 +1,396 @@
+---
+title: Violin Plots 3 ways in R
+author: Tina Baker
+date: '2018-05-29'
+slug:
+categories: []
+output:
+  blogdown::html_page:
+    toc: true
+    fig_width: 8
+    dev: "svg"
+tags:
+  - Data_Visualisation
+  - plotting
+summary: "Create beautifully simple violin/bean/pirate plots in R"
+header:
+  caption: ''
+  image: '/violins/pokemon_all_pirate_plot.png'
+---
+***
+## Overview
+**| Violin Plots | Split Violins | Bean Plots | Pirate plots |**
+
+This is a quick blog and git repo to help you create violin type plots using R in a few different ways.
+
+
+1) **Bean Plots with `geom_violin`**; 
+  Simple bean/violin plots with individual data points using ggplot2. Including
+  demonstration on how to change the order and colour of groups.
+  
+2) **Pirate Plots with `YaRrr` package**; 
+  Example of the YaRrr package for RDI type plots with IQR. \n Pirate plots have been coined "RDI plots" (Raw data, Descriptive statistics and Inferential statistics). You can download the yarrr package from [github](www.github.com/ndphillips/yarrr), which also has some great [documentation](https://bookdown.org/ndphillips/YaRrr/) from the talented Dr. Nathaniel Phillips.
+  
+3) **Split Violin Plot Function** ; 
+ A function I have built upon to make split violin plots using ggplot2 with lots of customisation potential for those less fluent with ggplot2; customisation such as; 
+  - change colours
+  - change order on plots
+  - adding summary counts
+  - setting a theme
+
+### Why use violin/bean/RDI plots? 
+The median, mean and IQR aren’t always enough to understand a dataset. Violin/bean type plots are becoming a more popular way of visualising data over common bar and boxplot. The main advantage with these types of plots is that anomalies in the data are easier to visualise; including multimodal distributions and duplicate values. See these great resources on the detailed advantages of violin/bean plots.
+[Beanplot package](https://cran.r-project.org/web/packages/beanplot/vignettes/beanplot.pdf); documentation; not used in this blog post, but also includes a split beanplot function
+
+
+## Install
+Prerequisites:
+
+* [Download and install Git](https://git-scm.com/downloads);for git install
+* [Download and install R](https://www.r-project.org/)
+* [Download and install Rstudio](https://www.rstudio.com/)
+
+You can choose from one of the following methods to install scripts and this markdown file:
+
+#### Install with Git
+Install on your computer using Git with the terminal
+
+1. [clone](https://github.com/sourcethemes/academic-kickstart#fork-destination-box) the *Violin plots* repository with Git: 
+
+        mkdir violin_plots
+        git clone https://github.com/bakertina/violin_plots.git violin_plots
+        cd /violin_plots/
+
+#### Install with ZIP
+Install on your computer by downloading the ZIP files
+
+1. [Download](https://github.com/bakertina/violin_plots) and extract *Violin plots*
+
+
+***
+
+# Start of .Rmd
+
+{{% alert note %}}
+Install a bunch of packages you need
+{{% /alert %}}
+
+```{r message=FALSE, warning=FALSE}
+# ### Intalll packages
+packages <- c("ggplot2","dplyr","gridExtra","grid","lattice","lazyeval","tidyr",
+              "RColorBrewer","extrafont","gridExtra", "colorspace","reshape2",
+              "tidyr","broom", "yarrr", "knitr") # add packages to list as needed
+
+if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
+  install.packages(setdiff(packages, rownames(installed.packages())))
+}
+#library(devtools)
+#install_github("ndphillips/yarrr")
+library(yarrr) # for pirate plots
+library(ggplot2)
+library(dplyr)
+library(lazyeval)
+library(tidyr)
+library(RColorBrewer)
+library(broom)
+library(knitr)
+library(kableExtra)
+```
+
+
+# Import the data
+
+Here we use the popular Pokemon dataset available on [kaggle](https://www.kaggle.com/abcsds/pokemon)
+
+
+![](/img/violins/pokemon_logo.png)
+
+
+{{% alert warning %}}
+You need to change the path `mydir` to locate the violin_plots folder you just made on your own machine
+{{% /alert %}}
+
+```{r Set the directory}
+# ### Set the path to directory !! CHANGE HERE
+mydir <- "/media/sf_Shared_Folder_Ubuntu/blog_post_git_repos/violin_plots/"
+
+# ### Read in the file and source function
+source(file = (paste0(mydir, "split_violin.R")))
+read.csv(paste0(mydir,"Pokemon.csv"), as.is = TRUE) -> data
+```
+
+
+## Format the data
+Lets take a look at the data, just the top 20 rows
+```{r}
+kable(head(data, 20),"html")%>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "scale_down", font_size = 10), full_width =FALSE) %>%
+  scroll_box(width = "100%", height = "300px") # this is for html on blog page, can use simple `head(data, 20)`
+```
+
+
+
+We are going to use the `Type.1` column as the plotting factor and the `Total` power as our y value. \n
+To demo how to use split violins later we will create a new generation `group` column, which will combine all the 1st, 2nd and 3rd generation Pokemon and all the 4th, 5th and 6th Pokemon; to highlight differences in generation era and total power. Also to reduce the number of values in the plot we will subset the data to include just the top 4 `Type.1` Pokemon type;  "Water", "Bug", "Normal" and  "Grass".
+
+```{r}
+# ### Summary of Type.1 column
+kable(t(table(data$Type.1)),"html")%>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "scale_down", font_size = 10), full_width =FALSE) %>%
+  scroll_box(width = "100%", height = "100%") # this is for html on blog page, can use simple `t(table(data$Type.1))`
+```
+
+```{r}
+# ### Subset top 5
+data %>%
+  subset(., .$Type.1 %in% c("Water", "Bug", "Normal", "Grass")) -> data
+
+# ### Create a new generation "group"
+toMatch <- c(1,2,3)
+data$group <- ifelse(grepl(paste(toMatch, collapse="|"), data$Generation), "early", "late")
+
+# ### Make an interaction
+data %>%
+      mutate(inter = interaction(data[['Type.1']], 
+                                 data[['group']], drop=TRUE)) -> data
+```
+
+
+# Setting global colours for ggplot2
+
+One way to set global colours for ggplot2 is to use a colour palette from the RColorBrewer package and pass a function for `scale_colour_discrete` and `scale_fill_discrete`. 
+To use custom colours it is best to delete these functions and set `scale_colour_discrete` and `scale_fill_discrete` in the ggplot2 object.
+
+```{r}
+# ### Make plots bw
+theme_set(theme_bw()) # will set ggplot theme as black and white grid as default
+
+# ### Set the col pal
+pal = "Set1" #  other palette inc; Accent, Dark2, Paired, Pastel1, Pastel2, Set1, Set2, Set3 #https://learnr.wordpress.com/2009/04/15/ggplot2-qualitative-colour-palettes/
+#display.brewer.all()
+
+# ### Function for scale colour
+scale_colour_discrete <- function(palname = pal, ...) {
+  scale_colour_brewer(palette = palname, ...)
+}
+# ### Functon for fill colour
+scale_fill_discrete <- function(palname = pal, ...) {
+  scale_fill_brewer(palette = palname, ...)
+}
+```
+
+
+
+***
+
+# 1: Bean Plots with geom_violin
+- Here we use `geom_violin` to make the violins with quantiles and violin ends not trimmed. Violin width is `scale` by count, but this can be set to width if want the groups to have equal width.\n
+- Point layer is added with `geom_point` using pch=95 which is a minus type symbol. 
+- The mean dot is added with `stat_summary`.
+- To annotate the labels `geom_text` is used, change the vjust value to move the y intercept.
+
+```{r}
+# ### Start plot
+p <- ggplot(data,aes(x=inter,  y=Total, fill =Type.1, colour=Type.1, alpha=1)) +
+  geom_violin(scale = "count", trim=FALSE, alpha =0.1, draw_quantiles =  c(0.25, 0.50,0.75))
+
+p <- p + scale_shape_identity() +
+  geom_point(aes(x=inter,  y=Total, pch=95), size=8, alpha=0.7, show.legend =FALSE) +
+  stat_summary(fun.y = median, fun.ymin = median, 
+               fun.ymax = median, geom = "point", 
+               color="black",show.legend=FALSE, alpha=1) +
+  ggtitle("Bean plot with RColorBrewer palette `set1`") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_text(aes(label = ..count.., y= ..prop..), 
+            stat= "count", vjust = 0, colour = "black", alpha =1, family="ArialMT")
+p
+```
+
+We might want to reorder the groups on the x axis, we can do this by setting the levels explicitly. 
+
+```{r}
+print(levels(data$inter))  # prints the exact levels we have to work with
+# arrange below in the exact order you want to see the group
+levels <- c("Bug.early","Bug.late","Grass.early","Grass.late","Normal.early","Normal.late","Water.early","Water.late")
+data$inter <-factor(data$inter, levels = levels)
+```
+
+Now when we rereun the same plot we see the order has grouped the `Type.1` together. I have also added `scale_color_manual`, and `scale_fill_manual` to override the defaut colours and explicityly delcare. 
+
+{{% alert note %}}
+If you have more levels than colours set in `values = ` you will get an error
+{{% /alert %}}
+
+
+```{r}
+p2 <- ggplot(data,aes(x=inter,  y=Total, fill =Type.1, colour=Type.1, alpha=1)) +
+  geom_violin(scale = "count", trim=FALSE, alpha =0.1, draw_quantiles =  c(0.25, 0.50,0.75))
+
+p2 <- p2 + scale_shape_identity() +
+  geom_point(aes(x=inter,  y=Total, pch=95), size=8, alpha=0.7, show.legend =FALSE) +
+  stat_summary(fun.y = median, fun.ymin = median, 
+               fun.ymax = median, geom = "point", 
+               color="black",show.legend=FALSE, alpha=1) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_color_manual(values = c("red", "blue", "green", "purple")) +
+  scale_fill_manual(values = c("red", "blue", "green", "purple")) +
+    ggtitle("Bean plot with custom colours and reordered") +
+  geom_text(aes(label = ..count.., y= ..prop..),
+            stat= "count", vjust = 0, colour = "black", alpha =1, family="ArialMT")
+p2
+```
+
+***
+# 2: Pirate Plots with YaRrr
+we can also make quick and simple RDI plots using the pirate plot package; yarrr. All you need to give is a formula for Y ~ X, and the dataframe 
+
+Basic plot
+```{r}
+pp <- pirateplot(formula = Total ~ Type.1,
+        data = data,
+        ylab = "Total Score",
+        xlab = "Pokemon Type",
+        main =  "Default basic pirate plot",
+        theme = 3)
+```
+
+see pirate plot documentation for full details but here is some customisation of the package option to change inference to IQR and edit default plot.
+
+```{r}
+pp <- pirateplot(formula = Total ~ Type.1, 
+                 # can plot on multiple groups for x
+                 # e.g. formula = Total ~ Type.1 + group, 
+        data = data,
+        ylab = "Total Score",
+        xlab = "Pokemon Type",
+        theme = 0, ### theme can cause error if not all datapoints for formula ?? not sure why
+        main =  "Custom pirate plot with IQR and 95% quantiles",
+        #pal = "southpark", #"basel", "google", "southpark").
+        bean.f.o = .25, # Bean fill
+        inf.method = "iqr", # Inference method ""
+        inf.disp = "bean", 
+        inf.f.o = .7, # Inference fill
+        inf.b.o = .8, # Inference border
+        avg.line.o = 1, # Average line
+        inf.f.col = "white", # Inf fill col
+        inf.b.col = "black", # Inf border col
+        avg.line.col = "black", # Mean line col
+        bar.f.o = .0, # bar alpha; set at 0 here so invisible 
+        bar.f.col = gray(.7), # bar filling colour
+        #bw = "SJ", # option will use half default bin width
+        quant = c(.1, .9), # 10th and 90th quantiles
+        quant.col = "black", # colour for quant
+        point.pch = 19, # points shape
+        point.bg = "white", # background colour point
+        #point.col = , list custom colours
+        point.cex = 0.7, # size of points
+        point.o = 1, # points alpha
+        cex.names = 1, # size of X labels
+        cap.beans = TRUE, # TRUE/FALSE to cap bean
+        jitter.val = 0.07) # amount to jitter # 0.05 default
+
+pp <- recordPlot()
+ppi <- 300
+png("pokemon_all_pirate_plot.png", width=14*ppi, height=5*ppi, res=ppi, pointsize =16)
+pp
+off <- dev.off()
+```
+
+
+
+***
+# 3: Split Violin Plot Function
+
+This function will make split violin plots; data needs to be in long format. The split variable needs to be in its own field and have the same group variables in each split. With your own data you might alreday have the 'interaction' term, you can make group and split column by using the `separate` function in dplyr; an example is given below.
+
+```{r}
+
+data[c("Total","inter")] -> data2 # maybe you have data that looks like this  
+head(data2) # take a look
+
+data2 %>% separate(inter, c("my_split_factor", "my_group_factor"), 
+                         extra = "drop", fill = "right", remove = FALSE) -> data2_separate
+head(data2_separate) # take a look now
+
+```
+
+### Function Variables
+  - `xvalue`    = string. name of column with numeric value for y
+  - `split_col` = string. name of column to split variable 
+  - `group_col` = string. name of column with the groups for x
+  - `xlab`      = string. name of the x label
+  - `ylab`      = string. name of the y label
+  - `ylim`      = numeric. vector for ymin and ymax
+  - `nums_y`    = numeric y co-ord for the counts # default NULL
+  - `labels`    = string. vector of custom text for labels; set NULL for default
+  - `levels`    = string. vector of custom levels (order) for labels; set NULL for de- fault
+  - `include_counts` = logical. TRUE to include counts on plot
+  - `colours`   = string. vector of custom colours; default NULL is blue and red 
+  - `main`      = string. name for title; set as NULL to remove
+  - `levels_split` = string. vector of custom split levels i.e. left:right split  
+  - `theme`     = string. ggplot2 theme can have; "prism_style", "classic", "bw", "minimal" or "light".
+  - `position`  = string. position of legend; can have; none, top, bottom, right, left
+  - `base_size` = numeric. size of base font; size 12/14 is good
+  - `base_family` = string. Set font family, for Arial use 'ArialMT", you might not have extra fonts installed , depends on OS. 
+  NB: this function will also print to screen the summary numbers for the splits and the original group labels for this.
+
+```{r}
+q1 <- split_violin(data,
+              xvalue = "Total", # name of column with numeric value
+              split_col = "group", # name of column to split variable 
+              group_col = "Type.1", # name of column with the groups
+              xlab= "Pokemon Type", # name of the x label (above)
+              ylab= "Total Power", # name of the y label (above)
+              #ylim = c(0, 700),
+              nums_y = NULL, # y co-ord for the counts
+              labels = NULL, # add custon text for labels; set NULL for default
+              levels = NULL, # set the levels to order X; set NULL for default
+              include_counts = TRUE, # Set TRUE/FALSE if include counts on plot
+              colours = NULL, # set colours, default NULL is blue and red 
+              main = "Pokemon Power and Generation", # title; set as NULL to remove
+              levels_split= NULL, # set the levels for left:right split (e.g above) 
+              theme = "prism_style", #  prism_style, classic, bw, minimal or light
+              position= "bottom", # can have; none, top, bottom, right, left
+              base_size = 12, # size 12/14 is good
+              base_family = "ArialMT"
+              )
+plot(q1)
+```
+
+
+Below details some customisation of the function; notably 
+- We explicitly set the levels of the split; changing the default alphnumeric order
+- We can change the order of the group; Water first
+- We rename the groups to desired annotation; can use expressions hre
+- We change the default two colours
+Some of the long string vectors are set as placeholder outside the function body for ease.
+
+```{r}
+levels_split <- c("late", "early")
+levels <- c("Water", "Normal", "Bug", "Grass") # need to be exact to the data, remove missing groups 
+labels <- c("aqua", "no_type", "bug", "grass") # need same length and order as levels
+colours = c("orange", "green") # only two colour plot
+
+
+q2 <- split_violin(data,
+              xvalue = "Total", # name of col with numeric value
+              split_col = "group", # name of col to split variable 
+              group_col = "Type.1", # name of col with the groups
+              xlab= "Type", # name of the x label (above)
+              ylab= "Total Power", # name of the y label (above)
+              ylim = c(0, 700),
+              nums_y = 0, # y co-ord for the counts
+              labels = labels, # add custom text for labels; set NULL for default
+              levels = levels, # set the levels to order X; set NULL for default
+              include_counts = TRUE, # Set TRUE/FALSE if include counts on plot
+              colours = colours, # set colours, default NULL is blue and red 
+              main = "Pokemon Power and Generation", # plot title; set as NULL to remove
+              levels_split= levels_split, # set the levels for left:right split (e.g above) 
+              theme = "bw", # can have; prism_style, classic, bw, minimal or light
+              position= "right", # can have; none, top, bottom, right, left
+              base_size = 12, # size 14 is good
+              base_family = "ArialMT"
+              )
+q2
+```
+
