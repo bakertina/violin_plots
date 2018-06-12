@@ -1,22 +1,10 @@
 ---
-title: Violin Plots 3 ways in R
-author: Tina Baker
-date: '2018-05-29'
-slug:
-categories: []
-output:
-  blogdown::html_page:
-    toc: true
-    fig_width: 8
-    dev: "svg"
-tags:
-  - Data_Visualisation
-  - plotting
-summary: "Create beautifully simple violin/bean/pirate plots in R"
-header:
-  caption: ''
-  image: '/violins/pokemon_all_pirate_plot.png'
+title: title: Violin Plots 3 ways in R"
+author: "Tina Baker"
+date: "12 June 2018"
+output: html_document
 ---
+
 ***
 ## Overview
 **| Violin Plots | Split Violins | Bean Plots | Pirate plots |**
@@ -79,7 +67,7 @@ Install a bunch of packages you need
 # ### Intalll packages
 packages <- c("ggplot2","dplyr","gridExtra","grid","lattice","lazyeval","tidyr",
               "RColorBrewer","extrafont","gridExtra", "colorspace","reshape2",
-              "tidyr","broom", "yarrr", "knitr") # add packages to list as needed
+              "tidyr","broom", "yarrr", "knitr", "extrafont", "kableExtra") # add packages to list as needed
 
 if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
   install.packages(setdiff(packages, rownames(installed.packages())))
@@ -95,6 +83,7 @@ library(RColorBrewer)
 library(broom)
 library(knitr)
 library(kableExtra)
+library(extrafont)
 ```
 
 
@@ -206,6 +195,8 @@ p <- p + scale_shape_identity() +
 p
 ```
 
+
+#### Customise some variables
 We might want to reorder the groups on the x axis, we can do this by setting the levels explicitly. 
 
 ```{r}
@@ -254,6 +245,8 @@ pp <- pirateplot(formula = Total ~ Type.1,
         theme = 3)
 ```
 
+
+#### Customise some variables
 see pirate plot documentation for full details but here is some customisation of the package option to change inference to IQR and edit default plot.
 
 ```{r}
@@ -357,6 +350,7 @@ q1 <- split_violin(data,
 plot(q1)
 ```
 
+#### Customise some variables
 
 Below details some customisation of the function; notably 
 - We explicitly set the levels of the split; changing the default alphnumeric order
@@ -384,7 +378,7 @@ q2 <- split_violin(data,
               levels = levels, # set the levels to order X; set NULL for default
               include_counts = TRUE, # Set TRUE/FALSE if include counts on plot
               colours = colours, # set colours, default NULL is blue and red 
-              main = "Pokemon Power and Generation", # plot title; set as NULL to remove
+              main = "Custom plot with changes", # plot title; set as NULL to remove
               levels_split= levels_split, # set the levels for left:right split (e.g above) 
               theme = "bw", # can have; prism_style, classic, bw, minimal or light
               position= "right", # can have; none, top, bottom, right, left
@@ -394,3 +388,4 @@ q2 <- split_violin(data,
 q2
 ```
 
+**HAPPY PLOTTING**
