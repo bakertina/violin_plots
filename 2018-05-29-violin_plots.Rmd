@@ -48,7 +48,7 @@ You can choose from one of the following methods to install scripts and this mar
 #### Install with Git
 Install on your computer using Git with the terminal
 
-1. [clone](https://github.com/sourcethemes/academic-kickstart#fork-destination-box) the *Violin plots* repository with Git: 
+1. [clone](https://github.com/bakertina/violin_plots.git) the *Violin plots* repository with Git: 
 
         mkdir violin_plots
         git clone https://github.com/bakertina/violin_plots.git violin_plots
