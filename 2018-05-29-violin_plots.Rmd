@@ -1,8 +1,13 @@
 ---
-title: title: Violin Plots 3 ways in R"
+title: "Violin Plots 3 ways in R"
 author: "Tina Baker"
-date: "12 June 2018"
-output: html_document
+date: '`r format(Sys.Date(), "%B %d, %Y")`'
+output:
+  prettydoc::html_pretty:
+    theme: cayman
+    highlight: github
+editor_options: 
+  chunk_output_type: console
 ---
 
 ***
@@ -91,9 +96,7 @@ library(extrafont)
 
 Here we use the popular Pokemon dataset available on [kaggle](https://www.kaggle.com/abcsds/pokemon)
 
-
-![](/img/violins/pokemon_logo.png)
-
+![](img/violins/pokemon_logo.png)
 
 {{% alert warning %}}
 You need to change the path `mydir` to locate the violin_plots folder you just made on your own machine
@@ -345,7 +348,7 @@ q1 <- split_violin(data,
               theme = "prism_style", #  prism_style, classic, bw, minimal or light
               position= "bottom", # can have; none, top, bottom, right, left
               base_size = 12, # size 12/14 is good
-              base_family = "ArialMT"
+              base_family = "ArialMT" #if error try Arial for windows
               )
 plot(q1)
 ```
@@ -383,7 +386,7 @@ q2 <- split_violin(data,
               theme = "bw", # can have; prism_style, classic, bw, minimal or light
               position= "right", # can have; none, top, bottom, right, left
               base_size = 12, # size 14 is good
-              base_family = "ArialMT"
+              base_family = "ArialMT" # if error try Arial for windows
               )
 q2
 ```
