@@ -3,9 +3,11 @@ split_violin <- function(df, split_col, group_col, labels=NULL, xlab = "X_",
                           theme=FALSE, colours , position = "bottom", 
                           include_counts = TRUE, main = "", base_size = 12, base_family =NULL, 
                           ylim =NULL, xvalue){
+  #extrafont::loadfonts(device="win") # fix for windows font error
   require(ggplot2)
   require(dplyr)
   require(broom)
+  require(tidyr)
   
   colnames(df) <- gsub(xvalue, "x_value", x = colnames(df))
   theme.size = base_size
@@ -15,7 +17,7 @@ split_violin <- function(df, split_col, group_col, labels=NULL, xlab = "X_",
     "split_col_"
   colnames(df)[colnames(df) == group_col] <-
     "inter_"
-  if (is.null(levels)) {colours =c("#0057e7", "#d62d20")} # colours if null
+  if (is.null(colours)) {colours =c("#0057e7", "#d62d20")} # colours if null
   if (is.null(nums_y)) {nums_y =max(df$x_value)*1.2}
   if (!is.null(levels)) {
     df$inter_ <-
@@ -69,10 +71,10 @@ split_violin <- function(df, split_col, group_col, labels=NULL, xlab = "X_",
     )) %>%
     ungroup()
   # ### Change the number of offsest for the data
-  offsets = unique(df[['inter_']]) %>% {
+  offsets = levels(df[['inter_']]) %>% {
     setNames(0:(length(.) - 1), .)
   } # number of groups
-  splits = unique(df[['split_col_']]) # what value to split on
+  splits = levels(df[['split_col_']]) # what value to split on
   
   # ### Offset the densities and summary statistics
   # mutate pdat with dens
